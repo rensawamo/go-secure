@@ -29,26 +29,31 @@ func handler(w http.ResponseWriter, r *http.Request) {
         log.Fatal(err)
     }
 
-    // 署名文字列の取得
+    // get signature
     signature := r.Header.Get("Signature")
 		fmt.Println("signature: ", signature)
 
-    // 署名対象の受信データ
+    // get body
     body, _ := ioutil.ReadAll(r.Body)
+		// body:  {"message":"Hello world!!!!!","timestamp":1481610623}
+		fmt.Println("body: ", string(body))
 
-    // 署名の検証
+
+    // verify signature
     if err := verifySignature(string(body), publicKeyStr, signature); err != nil {
         fmt.Println("err: ", err)
-        fmt.Println("拒否")
+        fmt.Println("deny")
         render.JSON(w, http.StatusForbidden, nil)
         return
     } else {
-        fmt.Println("承認")
+        fmt.Println("allow access !!!!")
     }
-    render.JSON(w, http.StatusOK, nil)
+    render.JSON(w, http.StatusOK, "good job!")
     return
 }
 
+// readPublicKey reads the public key from the file
+// the public key is generated from the private key
 func readPublicKey(filepath string) (string, error) {
     s := ""
     fp, err := os.Open(filepath)
@@ -72,11 +77,13 @@ func readPublicKey(filepath string) (string, error) {
 
 func verifySignature(message string, keystr string, signature string) error {
     keyBytes, err := base64.StdEncoding.DecodeString(keystr)
+		fmt.Println("keyBytes: ", keyBytes)
     if err != nil {
         return err
     }
 
     pub, err := x509.ParsePKIXPublicKey(keyBytes)
+		fmt.Println("pub: ", pub)
     if err != nil {
         return err
     }
@@ -90,6 +97,8 @@ func verifySignature(message string, keystr string, signature string) error {
     h.Write([]byte(message))
     hashed := h.Sum(nil)
 
+
+		// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
     err = rsa.VerifyPKCS1v15(pub.(*rsa.PublicKey), crypto.SHA256, hashed, signDataByte)
     if err != nil {
         return err
